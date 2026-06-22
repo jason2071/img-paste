@@ -50,13 +50,13 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name="imgpaste.app",
-    icon=None,
+    icon="assets/imgpaste.icns",
     bundle_identifier="com.imgpaste.app",
     info_plist={
         "LSUIElement": True,                 # menu-bar only, ไม่ขึ้น Dock
         "CFBundleName": "imgpaste",
         "CFBundleDisplayName": "imgpaste",
-        "CFBundleShortVersionString": "0.2.1",
+        "CFBundleShortVersionString": "0.2.2",
         "NSHighResolutionCapable": True,
     },
 )

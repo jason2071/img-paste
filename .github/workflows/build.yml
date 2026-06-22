@@ -61,6 +61,7 @@ jobs:
       - name: Build .exe
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed --name imgpaste
+          --icon assets/imgpaste.ico
           --collect-all pystray --collect-all pynput --collect-all PIL
           --collect-all watchdog
           --hidden-import imgpaste.clipboard.windows
