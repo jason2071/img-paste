@@ -9,7 +9,6 @@ NSPanel โปร่งใส ลอยกลางจอ (เหมือน wh
 from __future__ import annotations
 
 import io
-import math
 import os
 import subprocess
 import sys
@@ -25,7 +24,6 @@ from .clipboard import copy_image
 # ---- palette (hex) ----
 _TB_BG = "#ffffff"
 _BORDER = "#e7e8ee"
-_SHADOW = "#d9dae2"
 _ICON = "#3c3c43"
 _ACTIVE_BG = "#dbe7ff"
 _ACTIVE_FG = "#0a6cff"
@@ -56,9 +54,13 @@ def _capture_region() -> str | None:
     try:
         subprocess.run(["screencapture", "-i", "-x", tmp.name], check=False)
     except Exception:
-        return None
+        pass
     if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 0:
         return tmp.name
+    try:                       # user cancel / empty -> ลบ temp ทิ้ง
+        os.unlink(tmp.name)
+    except OSError:
+        pass
     return None
 
 
@@ -147,9 +149,6 @@ if _HAS_APPKIT:
             L(0, -7, 0, 3)
             L(-4, -1, 0, 3, 4, -1)
             L(-6, 7, 6, 7)
-        elif name == "crop":
-            L(-8, -3, 5, -3, 5, 8)
-            L(-5, -8, -5, 3, 8, 3)
         elif name == "undo":
             arc = NSBezierPath.bezierPath()
             arc.setLineWidth_(w)
@@ -219,11 +218,9 @@ if _HAS_APPKIT:
             self.width = 5
             self.shapes = []            # (tool,x0,y0,x1,y1,color,width) image-local y-down
             self.redo = []
-            self.mode = "annotate"
             self.fly_open = False
             self.fly_btn = None
             self._drag = None
-            self._band = None
             self._hover = None
 
             if path and os.path.isfile(path):
@@ -247,29 +244,42 @@ if _HAS_APPKIT:
             self.panel.setContentView_(self.view)
             self._relayout()
 
-            # nonactivating panel ไม่รับ keyDown -> global Esc listener
+            # nonactivating panel ไม่รับ keyDown (ไม่มี focus) -> global Esc listener
+            # gate ด้วย mouse อยู่เหนือ panel: Esc ที่ app อื่นจะไม่ปิด cropper
             self._esc_listener = None
             try:
                 from pynput import keyboard as _pk
                 from PyObjCTools import AppHelper
 
                 def _gk(key):
-                    if key == _pk.Key.esc:
+                    if key == _pk.Key.esc and self._mouse_over_panel():
                         AppHelper.callAfter(self._on_escape)
                 self._esc_listener = _pk.Listener(on_press=_gk)
                 self._esc_listener.start()
             except Exception:
                 pass
 
+        def _mouse_over_panel(self):
+            try:
+                p = NSEvent.mouseLocation()       # screen coords (y-up)
+                f = self.panel.frame()
+                return (f.origin.x <= p.x <= f.origin.x + f.size.width and
+                        f.origin.y <= p.y <= f.origin.y + f.size.height)
+            except Exception:
+                return True
+
         # ---------- image ----------
         def _load_pil(self, path):
             try:
                 self.orig = Image.open(path).convert("RGBA")
             except Exception:
+                self.orig = None
+                return
+            if self.orig.width == 0 or self.orig.height == 0:
+                self.orig = None        # ภาพ degenerate -> กัน ZeroDivision
                 return
             self.shapes.clear()
             self.redo.clear()
-            self.mode = "annotate"
             self.fly_open = False
             self.tool = None
             self.nsimg = _pil_to_ns(self.orig)
@@ -373,17 +383,6 @@ if _HAS_APPKIT:
                 self._draw_shape(s, ix, iy + ih)
             if self._drag is not None:
                 self._draw_shape(self._drag, ix, iy + ih)
-            if self._band is not None:
-                bx0, by0, bx1, by1 = self._band
-                sc = self.scale
-                _c(_BLUE).set()
-                p = NSBezierPath.bezierPathWithRect_(
-                    NSMakeRect(ix + min(bx0, bx1) * sc,
-                               (iy + ih) - max(by0, by1) * sc,
-                               abs(bx1 - bx0) * sc, abs(by1 - by0) * sc))
-                p.setLineWidth_(2)
-                p.setLineDash_count_phase_([5, 4], 2, 0)
-                p.stroke()
             # blue selection border
             _c(_BLUE).set()
             b = NSBezierPath.bezierPathWithRect_(NSMakeRect(ix + 1, iy + 1, iw - 2, ih - 2))
@@ -428,15 +427,13 @@ if _HAS_APPKIT:
         def _draw_pill(self, rect, specs):
             self._pill_bg(rect)
             has = self.orig is not None
-            crop = self.mode == "crop"
             for b in self._btns:
                 bid, x0, y0, x1, y1 = b
                 if bid not in specs:
                     continue
                 cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-                active = ((bid == "crop" and crop) or
-                          (bid in ("rect", "oval", "line") and has and not crop
-                           and self.tool == bid))
+                active = (bid in ("rect", "oval", "line")
+                          and has and self.tool == bid)
                 if bid == "done":
                     _c(_DONE_BG).set()
                     _rr(cx - 16, cy - 14, cx + 16, cy + 14, 10).fill()
@@ -453,10 +450,7 @@ if _HAS_APPKIT:
                     _c(_HOVER_BG).set()
                     _rr(cx - 16, cy - 14, cx + 16, cy + 14, 9).fill()
                 col = _CANCEL if bid == "close" else (_ACTIVE_FG if active else _ICON)
-                _icon(bid if bid in ("rect", "oval", "line") else
-                      {"close": "close", "copy": "copy", "save": "save",
-                       "undo": "undo", "redo": "redo", "crop": "crop"}[bid],
-                      cx, cy, col)
+                _icon(bid, cx, cy, col)
 
         def _draw_fly(self):
             fx, fy, fw, fh = self._fly_rect
@@ -538,32 +532,26 @@ if _HAS_APPKIT:
             if bid:
                 self._dispatch(bid)
                 return
-            if self._in_img(x, y):
+            if self._in_img(x, y) and self.tool is not None:
                 self._start = pt
-                if self.mode == "crop":
-                    self._band = (self._lx(x), self._ly(y), self._lx(x), self._ly(y))
-                elif self.tool is not None:
-                    self._drag = (self.tool, self._lx(x), self._ly(y),
-                                  self._lx(x), self._ly(y), self.color, self.width)
+                self._drag = (self.tool, self._lx(x), self._ly(y),
+                              self._lx(x), self._ly(y), self.color, self.width)
                 self.view.setNeedsDisplay_(True)
 
         def _mg(self, pt):
-            if getattr(self, "_start", None) is None:
+            if getattr(self, "_start", None) is None or self._drag is None:
                 return
             x, y = pt
-            if self.mode == "crop" and self._band is not None:
-                self._band = (self._band[0], self._band[1], self._lx(x), self._ly(y))
-            elif self._drag is not None:
-                self._drag = (self._drag[0], self._drag[1], self._drag[2],
-                              self._lx(x), self._ly(y), self.color, self.width)
+            self._drag = (self._drag[0], self._drag[1], self._drag[2],
+                          self._lx(x), self._ly(y), self.color, self.width)
             self.view.setNeedsDisplay_(True)
 
         def _mu(self, pt):
             if getattr(self, "_start", None) is None:
                 return
             self._start = None
-            if self.mode == "annotate" and self._drag is not None:
-                t, x0, y0, x1, y1, col, w = self._drag
+            if self._drag is not None:
+                _, x0, y0, x1, y1, _c2, _w = self._drag
                 if abs(x1 - x0) > 2 or abs(y1 - y0) > 2:
                     self.shapes.append(self._drag)
                     self.redo.clear()
@@ -585,7 +573,7 @@ if _HAS_APPKIT:
 
         # ---------- actions ----------
         def _dispatch(self, bid):
-            {"undo": self._undo, "redo": self._do_redo, "crop": self._do_crop,
+            {"undo": self._undo, "redo": self._do_redo,
              "rect": lambda: self._set_tool("rect"),
              "oval": lambda: self._set_tool("oval"),
              "line": lambda: self._set_tool("line"),
@@ -595,38 +583,12 @@ if _HAS_APPKIT:
         def _set_tool(self, name):
             if self.orig is None:
                 return
-            if self.mode == "annotate" and self.tool == name and self.fly_open:
-                self.fly_open = False
+            if self.tool == name and self.fly_open:
+                self.fly_open = False        # คลิกซ้ำ -> ปิด submenu
             else:
                 self.tool = name
                 self.fly_btn = name
                 self.fly_open = True
-            self.mode = "annotate"
-            self._band = None
-            self._refresh()
-
-        def _do_crop(self):
-            if self.orig is None:
-                return
-            if self.mode != "crop":
-                self.mode = "crop"
-                self.fly_open = False
-                self._band = None
-                self._refresh()
-                return
-            if self._band is not None:
-                x0, y0, x1, y1 = self._band
-                if abs(x1 - x0) >= 5 and abs(y1 - y0) >= 5:
-                    box = (int(min(x0, x1)), int(min(y0, y1)),
-                           int(max(x0, x1)), int(max(y0, y1)))
-                    self.orig = self.orig.crop(box)
-                    self.shapes.clear()
-                    self.redo.clear()
-                    self.nsimg = _pil_to_ns(self.orig)
-                    self.scale = min(_MAX_W / self.orig.width,
-                                     _MAX_H / self.orig.height, 1.0)
-                self._band = None
-            self.mode = "annotate"
             self._refresh()
 
         def _undo(self):
@@ -643,14 +605,12 @@ if _HAS_APPKIT:
             self._relayout()
 
         def _on_escape(self):
-            if self.mode == "crop":
-                self.mode = "annotate"
-                self._band = None
-                self._refresh()
-            else:
-                self._stop()
+            self._stop()
 
         def _stop(self):
+            if getattr(self, "_stopping", False):
+                return            # กันเรียกซ้ำ (keyDown + global Esc listener)
+            self._stopping = True
             if self._esc_listener is not None:
                 try:
                     self._esc_listener.stop()
@@ -681,32 +641,40 @@ if _HAS_APPKIT:
                         d.ellipse(box, outline=col, width=w)
             return img
 
+        def _copy_to_clipboard(self):
+            """flatten -> temp PNG -> clipboard -> ลบ temp (copy_image อ่าน sync)."""
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            tmp.close()
+            try:
+                self._flatten().save(tmp.name)
+                copy_image(tmp.name)
+            finally:
+                try:
+                    os.unlink(tmp.name)
+                except OSError:
+                    pass
+
         def _save(self):
             if self.orig is None:
                 return
             sp = NSSavePanel.savePanel()
             sp.setNameFieldStringValue_(
                 "imgpaste-" + time.strftime("%Y%m%d-%H%M%S") + ".png")
+            # accessory+nonactivating -> ต้อง activate ให้ dialog ขึ้นหน้า/รับ key
+            self.app.activateIgnoringOtherApps_(True)
             if sp.runModal() == 1:
-                p = sp.URL().path()
-                self._flatten().convert("RGB").save(p)
+                self._flatten().convert("RGB").save(sp.URL().path())
                 self._stop()      # เซฟเสร็จ -> ปิดหน้าต่าง
 
         def _copy_only(self):
             if self.orig is None:
                 return
-            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            tmp.close()
-            self._flatten().save(tmp.name)
-            copy_image(tmp.name)
+            self._copy_to_clipboard()
 
         def _send(self):
             if self.orig is None:
                 return
-            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            tmp.close()
-            self._flatten().save(tmp.name)
-            copy_image(tmp.name)
+            self._copy_to_clipboard()
             self._stop()
             time.sleep(self.cfg.paste_delay)
             if paste.available():
@@ -715,6 +683,7 @@ if _HAS_APPKIT:
         # ---------- run ----------
         def run(self):
             if self.orig is None:
+                self._stop()     # กัน pynput listener ค้างตอนโหลดภาพไม่สำเร็จ
                 return
             self.panel.orderFrontRegardless()
             self.panel.makeFirstResponder_(self.view)
