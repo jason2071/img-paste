@@ -486,6 +486,15 @@ if _HAS_APPKIT:
                 NSEventTypeApplicationDefined, NSMakePoint(0, 0), 0, 0, 0, None, 0, 0, 0)
             app.postEvent_atStart_(ev, True)
 
+        def _mouse_over_win(self):
+            try:
+                p = NSEvent.mouseLocation()
+                f = self.win.frame()
+                return (f.origin.x <= p.x <= f.origin.x + f.size.width and
+                        f.origin.y <= p.y <= f.origin.y + f.size.height)
+            except Exception:
+                return True
+
         def run(self):
             app = NSApplication.sharedApplication()
             app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
@@ -493,12 +502,33 @@ if _HAS_APPKIT:
             self.win.orderFrontRegardless()
             self.win.makeFirstResponder_(self.view)
 
+            # nonactivating panel ไม่รับ keyDown -> global Esc listener
+            # (gate ด้วย mouse เหนือวงล้อ: Esc ที่ app อื่นไม่ยกเลิก)
+            esc_listener = None
+            try:
+                from pynput import keyboard as _pk
+                from PyObjCTools import AppHelper
+
+                def _gk(key):
+                    if key == _pk.Key.esc and self._mouse_over_win():
+                        AppHelper.callAfter(self.cancel)
+                esc_listener = _pk.Listener(on_press=_gk)
+                esc_listener.start()
+            except Exception:
+                pass
+
             auto = os.environ.get("IMGPASTE_AUTOPICK")
             if auto is not None and auto.isdigit():
                 NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
                     0.9, False, lambda t: self.select(int(auto)))
 
             app.run()
+
+            if esc_listener is not None:
+                try:
+                    esc_listener.stop()
+                except Exception:
+                    pass
 
             if not self.selected:
                 return
