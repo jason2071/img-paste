@@ -535,8 +535,9 @@ if _HAS_APPKIT:
             time.sleep(self.cfg.paste_delay)
             copy_image(self.selected)
             # ตอนเลือกไม่เล่นเสียง (มีแต่ tick ตอน hover)
+            # paste จาก subprocess สะอาด — เลี่ยง double-key (Listener+NSApp.run)
             if self.cfg.auto_paste and paste.available():
-                paste.paste()
+                paste.paste_detached()
 
 
 def run():

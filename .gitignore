@@ -7,3 +7,4 @@ dist/
 venv/
 .DS_Store
 ui-fix/
+.playwright-mcp/

@@ -24,6 +24,23 @@ def available() -> bool:
     return _HAS_PYNPUT
 
 
+def paste_detached(delay: float = 0.0) -> bool:
+    """paste จาก subprocess สะอาด (fresh python) — เลี่ยง bug pynput macOS ที่
+    synthetic key ถูกส่งซ้ำเมื่อมี Listener + NSApp.run() อยู่ใน process เดียวกัน
+    (wheel/cropper). คืน True ถ้า spawn ได้.
+    """
+    import subprocess
+    code = (
+        "import time;time.sleep(%r);"
+        "from imgpaste import paste;paste.paste()" % float(delay)
+    )
+    try:
+        subprocess.Popen([sys.executable, "-c", code])
+        return True
+    except Exception:
+        return False
+
+
 def paste() -> None:
     """กด modifier+V วาง clipboard เข้า field ที่ focus อยู่. no-op ถ้าไม่มี pynput."""
     if not _HAS_PYNPUT:

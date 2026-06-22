@@ -641,7 +641,7 @@ if _HAS_APPKIT:
                         d.ellipse(box, outline=col, width=w)
             return img
 
-        def _copy_to_clipboard(self):
+        def _put_clipboard(self):
             """flatten -> temp PNG -> clipboard -> ลบ temp (copy_image อ่าน sync)."""
             tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             tmp.close()
@@ -669,16 +669,17 @@ if _HAS_APPKIT:
         def _copy_only(self):
             if self.orig is None:
                 return
-            self._copy_to_clipboard()
+            self._put_clipboard()
 
         def _send(self):
             if self.orig is None:
                 return
-            self._copy_to_clipboard()
+            self._put_clipboard()
             self._stop()
             time.sleep(self.cfg.paste_delay)
+            # paste จาก subprocess สะอาด — เลี่ยง double-key (Listener+NSApp.run)
             if paste.available():
-                paste.paste()    # focus เดิมอยู่แล้ว (nonactivating panel)
+                paste.paste_detached()    # focus เดิมอยู่แล้ว (nonactivating)
 
         # ---------- run ----------
         def run(self):
