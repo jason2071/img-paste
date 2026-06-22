@@ -56,7 +56,7 @@ app = BUNDLE(
         "LSUIElement": True,                 # menu-bar only, ไม่ขึ้น Dock
         "CFBundleName": "imgpaste",
         "CFBundleDisplayName": "imgpaste",
-        "CFBundleShortVersionString": "0.2.0",
+        "CFBundleShortVersionString": "0.2.1",
         "NSHighResolutionCapable": True,
     },
 )
