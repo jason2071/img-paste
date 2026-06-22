@@ -4,4 +4,4 @@
 (Claude Desktop/CLI, Codex, browser agents) หรือ paste path เข้า CLI.
 """
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"

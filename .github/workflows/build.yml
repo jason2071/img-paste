@@ -28,6 +28,11 @@ jobs:
       - name: Build .app
         run: pyinstaller --noconfirm --clean imgpaste.spec
 
+      - name: Ad-hoc code-sign (deep)
+        run: |
+          codesign --force --deep --sign - dist/SnapPaste.app
+          codesign --verify --deep --strict --verbose=2 dist/SnapPaste.app
+
       - name: Zip .app (preserve bundle)
         run: ditto -c -k --keepParent dist/SnapPaste.app SnapPaste-macos.zip
 

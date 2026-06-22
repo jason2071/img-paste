@@ -63,7 +63,7 @@ app = BUNDLE(
         "LSUIElement": True,                 # menu-bar only, ไม่ขึ้น Dock
         "CFBundleName": "SnapPaste",
         "CFBundleDisplayName": "SnapPaste",
-        "CFBundleShortVersionString": "0.2.4",
+        "CFBundleShortVersionString": "0.2.5",
         "NSHighResolutionCapable": True,
     },
 )
