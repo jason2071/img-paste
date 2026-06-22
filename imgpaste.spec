@@ -49,14 +49,14 @@ coll = COLLECT(
 )
 app = BUNDLE(
     coll,
-    name="imgpaste.app",
+    name="SnapPaste.app",
     icon="assets/imgpaste.icns",
-    bundle_identifier="com.imgpaste.app",
+    bundle_identifier="com.snappaste.app",
     info_plist={
         "LSUIElement": True,                 # menu-bar only, ไม่ขึ้น Dock
-        "CFBundleName": "imgpaste",
-        "CFBundleDisplayName": "imgpaste",
-        "CFBundleShortVersionString": "0.2.2",
+        "CFBundleName": "SnapPaste",
+        "CFBundleDisplayName": "SnapPaste",
+        "CFBundleShortVersionString": "0.2.3",
         "NSHighResolutionCapable": True,
     },
 )

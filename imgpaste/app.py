@@ -54,7 +54,7 @@ class TrayApp:
         self.icon = pystray.Icon(
             "imgpaste",
             icon.make_icon(),
-            "ImgPaste",
+            "SnapPaste",
             menu=self._build_menu(),
         )
         self.shake = ShakeDetector(

@@ -29,19 +29,19 @@ jobs:
         run: pyinstaller --noconfirm --clean imgpaste.spec
 
       - name: Zip .app (preserve bundle)
-        run: ditto -c -k --keepParent dist/imgpaste.app imgpaste-macos.zip
+        run: ditto -c -k --keepParent dist/SnapPaste.app SnapPaste-macos.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: imgpaste-macos
-          path: imgpaste-macos.zip
+          name: SnapPaste-macos
+          path: SnapPaste-macos.zip
 
       - name: Attach to release (on tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: imgpaste-macos.zip
+          files: SnapPaste-macos.zip
 
   windows:
     runs-on: windows-latest
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build .exe
         run: >-
-          pyinstaller --noconfirm --clean --onefile --windowed --name imgpaste
+          pyinstaller --noconfirm --clean --onefile --windowed --name SnapPaste
           --icon assets/imgpaste.ico
           --collect-all pystray --collect-all pynput --collect-all PIL
           --collect-all watchdog
@@ -71,11 +71,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: imgpaste-windows
-          path: dist/imgpaste.exe
+          name: SnapPaste-windows
+          path: dist/SnapPaste.exe
 
       - name: Attach to release (on tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/imgpaste.exe
+          files: dist/SnapPaste.exe
