@@ -1,34 +1,32 @@
-"""Tray icon — flat minimal + state/flash variants.
+"""Tray icon — monochrome line-art glyph, macOS template-friendly.
 
-make_icon(auto=False, flash=False):
-  auto  -> จุด accent เขียว (auto-copy เปิด) / เทา (ปิด)
-  flash -> สว่างขึ้นชั่วขณะ (micro-animation ตอน copy)
+บน macOS menu bar icon ถูก render เป็น *template image*: pixel ทึบทุกจุดจะถูก
+tint เป็นสีเดียว (ขาวบน dark menu bar / ดำบน light) ตามธีมระบบ — เหมือน icon
+เพื่อน ๆ ตัวอื่น. ดังนั้น detail ต้องมาจาก "ช่องว่าง" (alpha) ไม่ใช่จากสี.
 """
 
 from __future__ import annotations
 
 from PIL import Image, ImageDraw
 
-_BODY = (34, 40, 49, 255)
-_BODY_FLASH = (70, 84, 102, 255)
-_ACCENT = (120, 200, 170, 255)
-_SUN = (240, 200, 90, 255)
-_ON = (110, 220, 140, 255)
-_OFF = (110, 120, 130, 255)
+# foreground — บน macOS ถูก tint ทับด้วยสีระบบอยู่แล้ว (ค่าสีจึงไม่สำคัญ);
+# platform อื่นที่โชว์สีจริงจะเห็นโทนนี้
+_FG = (228, 230, 235, 255)
 
 
-def make_icon(auto: bool = False, flash: bool = False) -> Image.Image:
+def make_icon() -> Image.Image:
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
-    body = _BODY_FLASH if flash else _BODY
-    d.rounded_rectangle([8, 8, 56, 58], radius=8, fill=body)
-    d.rounded_rectangle([24, 3, 40, 13], radius=4, fill=_ACCENT)          # clip
-    d.ellipse([18, 20, 28, 30], fill=_SUN)                                # sun
-    d.polygon([(14, 50), (28, 34), (37, 44), (46, 30), (52, 50)],
-              fill=_ACCENT)                                               # mountains
+    # กรอบรูป (outline เท่านั้น -> ข้างในโปร่ง อ่านออกตอน tint)
+    d.rounded_rectangle([9, 13, 55, 51], radius=8, outline=_FG, width=5)
 
-    # state dot มุมขวาล่าง — เขียว=auto on, เทา=off
-    dot = _ON if auto else _OFF
-    d.ellipse([46, 46, 58, 58], fill=dot, outline=(20, 24, 30, 255), width=2)
+    # ดวงอาทิตย์ มุมซ้ายบนในกรอบ
+    d.ellipse([17, 19, 27, 29], fill=_FG)
+
+    # ภูเขา — ฐานแตะขอบล่างในกรอบ
+    d.polygon(
+        [(13, 47), (26, 31), (33, 39), (43, 27), (51, 47)],
+        fill=_FG,
+    )
     return img

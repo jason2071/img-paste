@@ -27,12 +27,7 @@ class Config:
     watch_dirs: list[str] = field(default_factory=lambda: list(DEFAULT_WATCH_DIRS))
     image_exts: list[str] = field(default_factory=lambda: list(DEFAULT_IMAGE_EXTS))
     max_items: int = 12
-    refresh_sec: float = 2.0
-    auto_copy: bool = False
     sound: bool = True
-    animations: bool = True
-    hotkey_image: str = "<ctrl>+<alt>+v"
-    hotkey_path: str = "<ctrl>+<alt>+b"
     # radial wheel + paste
     auto_paste: bool = True
     paste_delay: float = 0.2

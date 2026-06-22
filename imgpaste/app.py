@@ -1,6 +1,6 @@
-"""TrayApp — orchestrate menu + watcher + hotkeys + icon state.
+"""TrayApp — orchestrate menu + hotkeys + shake + image wheel.
 
-ฟีเจอร์หลัก: Auto-copy mode (รูปใหม่ลง -> copy เข้า clipboard ทันที).
+เมนูบาร์ launcher: capture region, เปิด image wheel, mouse-shake trigger.
 """
 
 from __future__ import annotations
@@ -17,101 +17,53 @@ from pystray import Menu, MenuItem as Item
 
 from . import config as cfg_mod
 from . import hotkeys, icon, sound
-from .clipboard import copy_image, copy_path
 from .shake import ShakeDetector
 from .shake import available as shake_available
-from .watcher import Watcher
 
-_FLASH_MS = 150
+
+def _enable_macos_template_icon() -> None:
+    """ทำให้ menu-bar icon เป็น template image -> macOS auto-tint ขาว/ดำ
+    ตามธีมระบบ เข้ากับ icon ตัวอื่นบน menu bar (แทนที่จะโชว์สีดิบ).
+
+    pystray ไม่รองรับ template โดยตรง จึง wrap _assert_image ให้ตั้ง flag
+    หลังสร้าง NSImage.
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        from pystray import _darwin
+    except Exception:
+        return
+    _orig = _darwin.Icon._assert_image
+
+    def _assert_image(self):
+        _orig(self)
+        img = getattr(self, "_icon_image", None)
+        if img is not None:
+            img.setTemplate_(True)
+
+    _darwin.Icon._assert_image = _assert_image
+
+
+_enable_macos_template_icon()
 
 
 class TrayApp:
     def __init__(self):
         self.cfg = cfg_mod.load()
-        self.count = 0
-        self._flash_timer: threading.Timer | None = None
         self.icon = pystray.Icon(
             "imgpaste",
-            icon.make_icon(auto=self.cfg.auto_copy),
-            self._title(),
+            icon.make_icon(),
+            "ImgPaste",
             menu=self._build_menu(),
         )
-        self.watcher = Watcher(self.cfg, self._on_new_image)
         self.shake = ShakeDetector(
             self._open_wheel, sensitivity=self.cfg.shake_sensitivity
         )
         self._wheel_proc: subprocess.Popen | None = None
         self._wheel_last = 0.0
 
-    # ---- helpers ----
-    def _title(self) -> str:
-        return f"ImgPaste · {self.count} copied" if self.count else "ImgPaste"
-
-    def _notify(self, msg: str) -> None:
-        try:
-            self.icon.notify(msg, "ImgPaste")
-        except Exception:
-            pass
-
-    def _refresh_icon(self, flash: bool = False) -> None:
-        try:
-            self.icon.icon = icon.make_icon(auto=self.cfg.auto_copy, flash=flash)
-            self.icon.title = self._title()
-        except Exception:
-            pass
-
-    def _flash(self) -> None:
-        if not self.cfg.animations:
-            return
-        self._refresh_icon(flash=True)
-        if self._flash_timer is not None:
-            self._flash_timer.cancel()
-        self._flash_timer = threading.Timer(_FLASH_MS / 1000, self._refresh_icon)
-        self._flash_timer.daemon = True
-        self._flash_timer.start()
-
-    def _feedback(self, kind: str, name: str) -> None:
-        """รวม notify + sound + flash + counter หลัง copy สำเร็จ."""
-        self.count += 1
-        glyph = "image" if kind == "image" else "path"
-        self._notify(f"✓ {glyph} · {name}")
-        if self.cfg.sound:
-            sound.play(kind)
-        self._flash()
-
-    # ---- copy actions ----
-    def _copy_image(self, path: str) -> None:
-        copy_image(path)
-        self._feedback("image", os.path.basename(path))
-
-    def _copy_path(self, path: str) -> None:
-        copy_path(path)
-        self._feedback("path", os.path.basename(path))
-
-    def _copy_newest_image(self, icon=None, item=None) -> None:
-        imgs = cfg_mod.recent_images(self.cfg, limit=1)
-        if imgs:
-            self._copy_image(imgs[0])
-
-    def _copy_newest_path(self, icon=None, item=None) -> None:
-        imgs = cfg_mod.recent_images(self.cfg, limit=1)
-        if imgs:
-            self._copy_path(imgs[0])
-
-    # ---- auto-copy callback (จาก watcher thread) ----
-    def _on_new_image(self, path: str) -> None:
-        if self.cfg.auto_copy:
-            self._copy_image(path)
-
     # ---- toggles ----
-    def _toggle_auto(self, icon=None, item=None) -> None:
-        self.cfg.auto_copy = not self.cfg.auto_copy
-        cfg_mod.save(self.cfg)
-        self._refresh_icon()
-        if self.cfg.sound:
-            sound.play("toggle")
-        self._notify("Auto-copy: ON" if self.cfg.auto_copy else "Auto-copy: OFF")
-
     def _toggle_sound(self, icon=None, item=None) -> None:
         self.cfg.sound = not self.cfg.sound
         cfg_mod.save(self.cfg)
@@ -167,38 +119,31 @@ class TrayApp:
             sound.play("toggle")
 
     def _quit(self, icon, item) -> None:
-        self.watcher.stop()
         self.shake.stop()
         icon.stop()
 
     # ---- menu ----
     def _build_menu(self) -> Menu:
         return Menu(
-            Item("Copy newest image  (Ctrl+Alt+V)",
-                 self._copy_newest_image, default=True),
-            Item("Copy newest path  (Ctrl+Alt+B)", self._copy_newest_path),
+            # ---- Actions ----
+            Item("Capture region…", self._capture_screen),
+            Item("Open image wheel  (Ctrl+Alt+Space)", self._open_wheel,
+                 default=True),
             Menu.SEPARATOR,
-            Item("Auto-copy new images", self._toggle_auto,
-                 checked=lambda i: self.cfg.auto_copy),
-            Item("Sound", self._toggle_sound, checked=lambda i: self.cfg.sound),
-            Menu.SEPARATOR,
-            Item("Open image wheel  (Ctrl+Alt+Space)", self._open_wheel),
+            # ---- Settings ----
             Item("Mouse-shake trigger", self._toggle_shake,
                  checked=lambda i: self.cfg.shake_trigger,
                  enabled=shake_available()),
-            Item("Capture region…", self._capture_screen),
+            Item("Sound", self._toggle_sound, checked=lambda i: self.cfg.sound),
             Menu.SEPARATOR,
             Item("Quit", self._quit),
         )
 
     # ---- run ----
     def run(self) -> None:
-        self.watcher.start()
         if self.cfg.shake_trigger:
             self.shake.start()
         hotkeys.start({
-            self.cfg.hotkey_image: self._copy_newest_image,
-            self.cfg.hotkey_path: self._copy_newest_path,
             self.cfg.hotkey_wheel: self._open_wheel,
         })
         self.icon.run()  # ต้องรันบน main thread (โดยเฉพาะ macOS)

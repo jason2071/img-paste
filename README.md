@@ -67,14 +67,14 @@ focus ช่อง input → สะบัดเมาส์แรง ๆ (ซ้
 ### Capture region + annotate
 
 เมนู **Capture region…** → ลากเลือกพื้นที่จอ (เหมือน Cmd+Shift+4) → เปิด preview
-editor (สไตล์ CleanShot): toolbar ลอยใต้ภาพ (vector icons, rounded) + flyout
-เลือก stroke/สี
+editor (**AppKit, พื้นโปร่งใส ลอยกลางจอ** เหมือนวงล้อ — ไม่มีกล่อง): 2 pill toolbar
+ลอย + กรอบฟ้ารอบภาพ
 
-- **Tools** — crop, rectangle, oval, line · undo/redo
-- **Flyout** — ขนาดเส้น (S/M/L) + สวอตช์สี + color picker
-- **Save** เซฟ PNG · **✓ Send** = copy รูป (crop+วาด) + auto `Cmd+V` เข้า app
-  ที่ focus ไว้ก่อนหน้า แล้วปิด editor · **Esc** ปิด
-- ลากไฟล์รูปมาวางใน editor ก็ได้ (`tkinterdnd2`) หรือ Open ผ่าน dialog
+- **Tools pill** — undo/redo · crop · rectangle/oval/line
+- คลิก shape → **flyout ยื่นใต้ปุ่ม**: ขนาดเส้น (S/M/L) + สวอตช์สี preset
+- **Actions pill** — ✕ close · ⧉ copy clipboard · ↓ save PNG · ✓ **Send**
+- **✓ Send** = copy รูป (crop+วาด) + auto `Cmd+V` เข้า app ที่ focus ไว้ (panel
+  nonactivating ไม่แย่ focus → วางตรง) · **Esc** ปิด
 
 ### macOS permissions
 
@@ -112,7 +112,7 @@ imgpaste/
   watcher.py    # watchdog watch + polling fallback
   clipboard/    # macos.py / windows.py backends
   wheel.py      # radial 3×3 image wheel — AppKit, themeable (process แยก)
-  cropper.py    # capture/crop/annotate editor — Tk CleanShot-style (process แยก)
+  cropper.py    # capture/crop/annotate editor — AppKit, โปร่งใสลอย (process แยก)
   shake.py      # mouse-shake detector (pynput)
   paste.py      # synthetic Cmd/Ctrl+V (pynput)
   picker.py     # Tk thumbnail grid (wheel fallback บน non-macOS)
