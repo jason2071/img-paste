@@ -324,36 +324,57 @@ if _HAS_APPKIT:
             if 0 <= hot_i < cells:
                 card(hot_i)
 
-            # ---- hub (dark glass) ----
-            hub_hot = kind == "center"
+            # ---- hub (dark glass) แบ่ง 2 โซน: บน=Capture, ล่าง=สลับ source ----
+            cap_hot = kind == "capture"
+            src_hot = kind == "center"
             NSGraphicsContext.saveGraphicsState()
             hsh = NSShadow.alloc().init()
             hsh.setShadowColor_(_rgba(*_SH_HUB_RGB, _SH_HUB_A))
             hsh.setShadowBlurRadius_(_SH_HUB_BLUR)
             hsh.setShadowOffset_(NSMakeSize(0, -4))
             hsh.set()
-            hub_w, hub_h, hub_rad = _CARD_W, 116, 26   # เตี้ย+มนกว่าการ์ด = ดูเป็นปุ่ม
+            hub_w, hub_h, hub_rad = _CARD_W, 136, 26
             hub_rect = NSMakeRect(_CXY - hub_w / 2, _CXY - hub_h / 2, hub_w, hub_h)
             hub = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 hub_rect, hub_rad, hub_rad)
-            (_C_HUB_HOT if hub_hot else _C_HUB).set()
+            _C_HUB.set()
             hub.fill()
             NSGraphicsContext.restoreGraphicsState()
-            hub.setLineWidth_(2.0 if hub_hot else 1.5)
-            (_C_HUB_RING_HOT if hub_hot else _C_HUB_RING).set()
+            # hover highlight ครึ่งที่ชี้ (clip ใน hub)
+            if cap_hot or src_hot:
+                NSGraphicsContext.saveGraphicsState()
+                hub.addClip()
+                _C_HUB_HOT.set()
+                hy = _CXY if cap_hot else _CXY - hub_h / 2
+                NSBezierPath.fillRect_(
+                    NSMakeRect(_CXY - hub_w / 2, hy, hub_w, hub_h / 2))
+                NSGraphicsContext.restoreGraphicsState()
+            # เส้นคั่น 2 โซน
+            sep = NSBezierPath.bezierPath()
+            sep.setLineWidth_(1.0)
+            sep.moveToPoint_(NSMakePoint(_CXY - hub_w / 2 + 14, _CXY))
+            sep.lineToPoint_(NSMakePoint(_CXY + hub_w / 2 - 14, _CXY))
+            _C_HUB_RING.set()
+            sep.stroke()
+            hub.setLineWidth_(2.0 if (cap_hot or src_hot) else 1.5)
+            (_C_HUB_RING_HOT if (cap_hot or src_hot) else _C_HUB_RING).set()
             hub.stroke()
-            _text(ctrl.source_label(), _CXY, _CXY + 12,
-                  NSFont.boldSystemFontOfSize_(20), _C_TEXT)
-            _text("⇄ สลับ", _CXY, _CXY - 16,
-                  NSFont.systemFontOfSize_(13), _C_SUB, sub=True)
+            # บน: Capture
+            _text("📷 Capture", _CXY, _CXY + 34,
+                  NSFont.boldSystemFontOfSize_(15), _C_TEXT)
+            # ล่าง: source toggle
+            _text(ctrl.source_label(), _CXY, _CXY - 24,
+                  NSFont.boldSystemFontOfSize_(18), _C_TEXT)
+            _text("⇄ สลับ", _CXY, _CXY - 48,
+                  NSFont.systemFontOfSize_(12), _C_SUB, sub=True)
 
         # ---- events ----
         @objc.python_method
         def _hit(self, event):
             loc = self.convertPoint_fromView_(event.locationInWindow(), None)
-            # ช่องกลาง (hub) = สี่เหลี่ยม
+            # ช่องกลาง (hub) = สี่เหลี่ยม แบ่ง 2 โซน: บน=capture, ล่าง=สลับ source
             if abs(loc.x - _CXY) <= _STEP_X / 2 and abs(loc.y - _CXY) <= _STEP_Y / 2:
-                return ("center", -1)
+                return ("capture", -1) if loc.y > _CXY else ("center", -1)
             # pointer อยู่ในช่องไหนของ grid (ช่องสี่เหลี่ยมผืนผ้า)
             cells = min(self.controller.slots, len(_GRID))
             for i in range(cells):
@@ -370,13 +391,15 @@ if _HAS_APPKIT:
                 prev = self.controller.active
                 self.controller.active = a
                 self.setNeedsDisplay_(True)
-                # tick ตอนเลื่อนเข้าช่องใหม่ (ไม่เล่นตอนออกไปโซน none/center)
-                if a[0] == "slot" and a != prev and self.controller.cfg.sound:
+                # tick ตอนเลื่อนเข้าช่องใหม่ (slot/capture); ไม่เล่นตอน none/center
+                if a[0] in ("slot", "capture") and a != prev and self.controller.cfg.sound:
                     sound.play("hover")
 
         def mouseDown_(self, event):
             kind, idx = self._hit(event)
-            if kind == "center":
+            if kind == "capture":
+                self.controller.capture()
+            elif kind == "center":
                 self.controller.toggle_source()
                 self.setNeedsDisplay_(True)
             elif kind == "slot":
@@ -397,6 +420,7 @@ if _HAS_APPKIT:
             self.slots = max(1, int(self.cfg.wheel_slots))
             self.source = 0
             self.selected = None
+            self.do_capture = False
             self.active = ("none", -1)
             self._thumbs = {}
             self.images = self._images_now()
@@ -478,6 +502,10 @@ if _HAS_APPKIT:
             self.selected = None
             self._stop()
 
+        def capture(self):
+            self.do_capture = True       # run() จะเปิด cropper editor หลังปิด wheel
+            self._stop()
+
         def _stop(self):
             self.win.orderOut_(None)
             app = NSApplication.sharedApplication()
@@ -530,6 +558,14 @@ if _HAS_APPKIT:
                 except Exception:
                     pass
 
+            if self.do_capture:          # hub บน -> เปิด cropper (จับภาพ + editor)
+                import subprocess
+                try:
+                    subprocess.Popen(
+                        [sys.executable, "-m", "imgpaste.cropper", "--capture"])
+                except Exception:
+                    pass
+                return
             if not self.selected:
                 return
             time.sleep(self.cfg.paste_delay)
