@@ -42,3 +42,39 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: imgpaste-macos.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build .exe
+        run: >-
+          pyinstaller --noconfirm --clean --onefile --windowed --name imgpaste
+          --collect-all pystray --collect-all pynput --collect-all PIL
+          --collect-all watchdog
+          --hidden-import imgpaste.clipboard.windows
+          --hidden-import win32clipboard --hidden-import win32con
+          imgpaste/__main__.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: imgpaste-windows
+          path: dist/imgpaste.exe
+
+      - name: Attach to release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/imgpaste.exe
