@@ -15,6 +15,13 @@ for pkg in ("pystray", "pynput", "objc", "AppKit", "Foundation",
     except Exception:
         pass
 hiddenimports += [
+    # router ใน __main__.py lazy-import โมดูลเหล่านี้ -> ต้องบังคับ bundle
+    "imgpaste.app",
+    "imgpaste.wheel",
+    "imgpaste.cropper",
+    "imgpaste.picker",
+    "imgpaste.paste",
+    "imgpaste._exec",
     "imgpaste.clipboard.macos",
     "imgpaste.clipboard.windows",
     "PyObjCTools.AppHelper",
@@ -56,7 +63,7 @@ app = BUNDLE(
         "LSUIElement": True,                 # menu-bar only, ไม่ขึ้น Dock
         "CFBundleName": "SnapPaste",
         "CFBundleDisplayName": "SnapPaste",
-        "CFBundleShortVersionString": "0.2.3",
+        "CFBundleShortVersionString": "0.2.4",
         "NSHighResolutionCapable": True,
     },
 )

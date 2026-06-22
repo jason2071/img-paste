@@ -64,6 +64,9 @@ jobs:
           --icon assets/imgpaste.ico
           --collect-all pystray --collect-all pynput --collect-all PIL
           --collect-all watchdog
+          --hidden-import imgpaste.app --hidden-import imgpaste.wheel
+          --hidden-import imgpaste.cropper --hidden-import imgpaste.picker
+          --hidden-import imgpaste.paste --hidden-import imgpaste._exec
           --hidden-import imgpaste.clipboard.windows
           --hidden-import win32clipboard --hidden-import win32con
           imgpaste/__main__.py

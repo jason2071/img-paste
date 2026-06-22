@@ -29,13 +29,12 @@ def paste_detached(delay: float = 0.0) -> bool:
     synthetic key ถูกส่งซ้ำเมื่อมี Listener + NSApp.run() อยู่ใน process เดียวกัน
     (wheel/cropper). คืน True ถ้า spawn ได้.
     """
-    import subprocess
-    code = (
-        "import time;time.sleep(%r);"
-        "from imgpaste import paste;paste.paste()" % float(delay)
-    )
+    from . import _exec
+    args = ["paste"]
+    if delay:
+        args.append(repr(float(delay)))
     try:
-        subprocess.Popen([sys.executable, "-c", code])
+        _exec.spawn(args)
         return True
     except Exception:
         return False

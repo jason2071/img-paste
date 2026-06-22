@@ -17,6 +17,7 @@ from pystray import Menu, MenuItem as Item
 
 from . import config as cfg_mod
 from . import hotkeys, icon, sound
+from . import _exec
 from .shake import ShakeDetector
 from .shake import available as shake_available
 
@@ -84,7 +85,7 @@ class TrayApp:
         if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 0:
             # เปิด editor โชว์ preview ก่อน -> user กด Paste เองตอนพร้อม
             try:
-                subprocess.Popen([sys.executable, "-m", "imgpaste.cropper", tmp.name])
+                _exec.spawn(["cropper", tmp.name])
             except Exception:
                 pass
         else:
@@ -102,9 +103,7 @@ class TrayApp:
             return  # วงล้อเปิดอยู่แล้ว
         self._wheel_last = now
         try:
-            self._wheel_proc = subprocess.Popen(
-                [sys.executable, "-m", "imgpaste.wheel"]
-            )
+            self._wheel_proc = _exec.spawn(["wheel"])
         except Exception:
             self._wheel_proc = None
 

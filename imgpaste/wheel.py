@@ -559,10 +559,9 @@ if _HAS_APPKIT:
                     pass
 
             if self.do_capture:          # hub บน -> เปิด cropper (จับภาพ + editor)
-                import subprocess
+                from . import _exec
                 try:
-                    subprocess.Popen(
-                        [sys.executable, "-m", "imgpaste.cropper", "--capture"])
+                    _exec.spawn(["cropper", "--capture"])
                 except Exception:
                     pass
                 return
