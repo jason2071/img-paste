@@ -16,7 +16,7 @@ except Exception:
     pass
 
 try:
-    from AppKit import NSImage, NSPasteboard
+    from AppKit import NSImage, NSPasteboard, NSPasteboardTypePNG
 
     _HAS_APPKIT = True
 except Exception:
@@ -37,12 +37,23 @@ def _copy_image_osascript(path: str) -> None:
 
 def copy_image(path: str) -> None:
     if _HAS_APPKIT:
-        img = NSImage.alloc().initWithContentsOfFile_(path)
-        if img is not None:
+        # ลง pasteboard เป็น PNG "type เดียว" — เลี่ยง NSImage ที่ลงหลาย
+        # representation (TIFF+PDF) ทำบาง app วาง 2 ภาพ
+        try:
+            from io import BytesIO
+
+            from Foundation import NSData
+            buf = BytesIO()
+            Image.open(path).convert("RGBA").save(buf, "PNG")
+            raw = buf.getvalue()
+            png = NSData.dataWithBytes_length_(raw, len(raw))
             pb = NSPasteboard.generalPasteboard()
             pb.clearContents()
-            pb.writeObjects_([img])
-            return
+            pb.declareTypes_owner_([NSPasteboardTypePNG], None)
+            if pb.setData_forType_(png, NSPasteboardTypePNG):
+                return
+        except Exception:
+            pass
     _copy_image_osascript(path)
 
 
