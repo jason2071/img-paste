@@ -670,6 +670,7 @@ if _HAS_APPKIT:
             if self.orig is None:
                 return
             self._put_clipboard()
+            self._stop()      # copy เสร็จ -> ปิดหน้าต่าง
 
         def _send(self):
             if self.orig is None:
