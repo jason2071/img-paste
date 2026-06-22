@@ -46,7 +46,7 @@ _PILL_R = 16
 _BW, _SEPW, _PAD = 36, 15, 13
 _FLY_H = 42
 _MAX_W, _MAX_H = 1100, 720
-_TOOLS = ["undo", "redo", "|", "crop", "|", "rect", "oval", "line"]
+_TOOLS = ["undo", "redo", "|", "rect", "oval", "line"]
 _ACTIONS = ["close", "copy", "save", "done"]
 
 
@@ -282,18 +282,18 @@ if _HAS_APPKIT:
                 return
             dw = max(1, int(self.orig.width * self.scale))
             dh = max(1, int(self.orig.height * self.scale))
-            tools_w = _PAD * 2 + 6 * _BW + 2 * _SEPW
+            tools_w = _PAD * 2 + 5 * _BW + 1 * _SEPW
             act_w = _PAD * 2 + 4 * _BW
             tbar_w = tools_w + _GAP + act_w
             fly_w = 14 * 2 + len(_STROKES) * 30 + 18 + len(_SWATCHES) * 28
             fly_on = self.fly_open
             pw = max(dw + 2 * _MARGIN, tbar_w + 24)
-            ph = (_MARGIN + dh + 16 + _TB_H
+            ph = (_MARGIN + dh + _TB_H
                   + ((7 + _FLY_H) if fly_on else 0) + _MARGIN)
             self._pw, self._ph = pw, ph
             self._dw, self._dh = dw, dh
             self._img = (round((pw - dw) / 2), ph - _MARGIN - dh, dw, dh)
-            tb_y = self._img[1] - 16 - _TB_H
+            tb_y = self._img[1] - _TB_H
             tools_x = round((pw - tbar_w) / 2)
             act_x = tools_x + tools_w + _GAP
             self._tb_y = tb_y
@@ -315,15 +315,15 @@ if _HAS_APPKIT:
                 self._layout_fly(fx, fy)
             else:
                 self._fly_rect = None
-            # apply panel size + center
-            scr = NSScreen.mainScreen().frame()
-            x = scr.origin.x + (scr.size.width - pw) / 2
-            y = scr.origin.y + (scr.size.height - ph) / 2
-            cur = self.panel.frame()
-            if (abs(cur.size.width - pw) > 1 or abs(cur.size.height - ph) > 1):
-                # คงตำแหน่งถ้าเคยตั้งแล้ว (ไม่กระโดดตอน toggle flyout)
-                if getattr(self, "_placed", False):
-                    x, y = cur.origin.x, cur.origin.y + cur.size.height - ph
+            # apply panel size — anchor top-left เสมอหลังวางครั้งแรก (ไม่กระโดด)
+            if getattr(self, "_placed", False):
+                cur = self.panel.frame()
+                x = cur.origin.x
+                y = cur.origin.y + cur.size.height - ph     # คง top edge
+            else:
+                scr = NSScreen.mainScreen().frame()
+                x = scr.origin.x + (scr.size.width - pw) / 2
+                y = scr.origin.y + (scr.size.height - ph) / 2
             self.panel.setFrame_display_(NSMakeRect(x, y, pw, ph), True)
             self.view.setFrame_(NSMakeRect(0, 0, pw, ph))
             self._placed = True
@@ -335,8 +335,9 @@ if _HAS_APPKIT:
                 if s == "|":
                     x += _SEPW
                 else:
-                    self._btns.append((s, x, py + (_TB_H - 36) / 2 + 3,
-                                       x + _BW, py + (_TB_H - 36) / 2 + 3 + 36))
+                    # pill จริงสูง _TB_H-2 (fill ถึง y+h-2) -> จัด button กึ่งกลาง pill
+                    y0 = py + (_TB_H - 2 - 36) / 2
+                    self._btns.append((s, x, y0, x + _BW, y0 + 36))
                     x += _BW
 
         def _btn_cx(self, bid):
@@ -374,10 +375,12 @@ if _HAS_APPKIT:
                 self._draw_shape(self._drag, ix, iy + ih)
             if self._band is not None:
                 bx0, by0, bx1, by1 = self._band
+                sc = self.scale
                 _c(_BLUE).set()
                 p = NSBezierPath.bezierPathWithRect_(
-                    NSMakeRect(ix + min(bx0, bx1), (iy + ih) - max(by0, by1),
-                               abs(bx1 - bx0), abs(by1 - by0)))
+                    NSMakeRect(ix + min(bx0, bx1) * sc,
+                               (iy + ih) - max(by0, by1) * sc,
+                               abs(bx1 - bx0) * sc, abs(by1 - by0) * sc))
                 p.setLineWidth_(2)
                 p.setLineDash_count_phase_([5, 4], 2, 0)
                 p.stroke()
@@ -394,8 +397,9 @@ if _HAS_APPKIT:
 
         def _draw_shape(self, s, ix, itop):
             tool, x0, y0, x1, y1, col, w = s
-            X0, X1 = ix + x0, ix + x1
-            Y0, Y1 = itop - y0, itop - y1     # flip y
+            sc = self.scale
+            X0, X1 = ix + x0 * sc, ix + x1 * sc
+            Y0, Y1 = itop - y0 * sc, itop - y1 * sc     # full-res -> display, flip y
             _c(col).set()
             if tool == "line":
                 p = NSBezierPath.bezierPath()
@@ -414,8 +418,6 @@ if _HAS_APPKIT:
 
         def _pill_bg(self, rect):
             x, y, w, h = rect
-            _c(_SHADOW).set()
-            _rr(x, y - 4, x + w, y + h - 2, _PILL_R).fill()
             _c(_TB_BG).set()
             _rr(x, y, x + w, y + h - 2, _PILL_R).fill()
             _c(_BORDER).set()
@@ -688,6 +690,7 @@ if _HAS_APPKIT:
             if sp.runModal() == 1:
                 p = sp.URL().path()
                 self._flatten().convert("RGB").save(p)
+                self._stop()      # เซฟเสร็จ -> ปิดหน้าต่าง
 
         def _copy_only(self):
             if self.orig is None:
