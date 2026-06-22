@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: write          # สร้าง Release + แนบ asset ตอน tag
+
 jobs:
   macos:
     runs-on: macos-latest
