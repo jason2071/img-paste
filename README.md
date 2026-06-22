@@ -80,8 +80,33 @@ editor (**AppKit, พื้นโปร่งใส ลอยกลางจอ*
 
 ### macOS permissions
 
-Global hotkey ต้องอนุญาต Accessibility ให้ Terminal/Python:
-**System Settings → Privacy & Security → Accessibility**
+paste / hotkey / สะบัดเมาส์ / capture ต้องได้ permission ก่อน ไม่งั้น **copy ติด
+clipboard แต่ภาพไม่วาง** (synthetic `Cmd+V` ถูก macOS drop เงียบ ๆ).
+
+**รันจาก source (dev):** grant ให้ **Terminal** (หรือ app ที่รัน python)
+**รัน SnapPaste.app (prebuilt):** grant ให้ **SnapPaste**
+
+1. **System Settings → Privacy & Security → Accessibility** → เปิด toggle ให้
+   SnapPaste/Terminal (ถ้าไม่มีในลิสต์ กด **+** แล้วเลือก SnapPaste.app)
+2. **System Settings → Privacy & Security → Screen Recording** → เปิดให้ด้วย
+   (จำเป็นเฉพาะ Capture region)
+3. **Quit แล้วเปิด SnapPaste ใหม่** — permission เพิ่งให้มีผลตอน restart
+
+### Troubleshoot — เลือกในวงล้อ/กด Send แล้ว "ภาพไม่วาง"
+
+แทบทุกครั้งคือ **Accessibility ยังไม่ติด**. เช็คตามนี้:
+
+- ยืนยันว่า copy ทำงาน: หลังเลือก ไปช่องแชทกด `Cmd+V` เองมือ — ถ้าวางได้ =
+  clipboard ดี ปัญหาอยู่ที่ synthetic paste (= Accessibility)
+- **ลบ entry SnapPaste เดิมออกก่อนแล้ว add ใหม่** — TCC จำตาม path/signature
+  ของ build เก่า พออัปเดตเวอร์ชัน/ลากทับ ของเก่าค้างทำให้ของใหม่ไม่ติด
+  (กด **−** ลบ SnapPaste ใน Accessibility → **+** เพิ่มอันใหม่ → Quit/เปิดใหม่)
+- ลาก `SnapPaste.app` เข้า **/Applications** ให้ path นิ่ง (อย่ารันจาก Downloads/zip)
+- ติดตั้งครั้งแรกจาก zip ที่โหลดมา ต้องปลด quarantine ก่อน:
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/SnapPaste.app
+  ```
+- ยังไม่หาย → ลอง grant **Input Monitoring** เพิ่ม (บาง macOS แยกสิทธิ์ listen/synthesize)
 
 ## Config
 
