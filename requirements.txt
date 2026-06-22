@@ -1,0 +1,18 @@
+# Core (cross-platform)
+pystray>=0.19
+pillow>=10.0
+watchdog>=4.0
+
+# Global hotkeys, mouse-shake trigger, auto-paste (Cmd/Ctrl+V).
+# ถ้าไม่มี: hotkey/shake/paste จะปิด แต่เมนูยังใช้ได้
+pynput>=1.7
+
+# Platform-specific clipboard backends
+pywin32>=306; sys_platform == "win32"
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
+
+# Drag-drop รูปเข้า crop editor (ไม่มีก็ได้ -> fallback ปุ่ม Open)
+tkinterdnd2>=0.4
+
+# Optional: HEIC screenshot support (pip install imgpaste[heic])
+# pillow-heif>=0.16

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imgpaste"
+version = "0.2.0"
+description = "Menu bar / system tray helper that auto-copies the newest image into the clipboard for chat/CLI agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "pystray>=0.19",
+    "pillow>=10.0",
+    "watchdog>=4.0",
+    "pynput>=1.7",
+    "pywin32>=306; sys_platform == 'win32'",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+    "tkinterdnd2>=0.4",
+]
+
+[project.optional-dependencies]
+heic = ["pillow-heif>=0.16"]
+
+[project.scripts]
+imgpaste = "imgpaste.app:main"
+
+[tool.setuptools]
+packages = ["imgpaste", "imgpaste.clipboard"]
