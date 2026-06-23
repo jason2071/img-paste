@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "imgpaste"
-version = "0.2.5"
+version = "0.2.6"
 description = "Menu bar / system tray helper that auto-copies the newest image into the clipboard for chat/CLI agents"
 readme = "README.md"
 requires-python = ">=3.11"
