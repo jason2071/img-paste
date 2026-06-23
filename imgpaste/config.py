@@ -32,7 +32,7 @@ class Config:
     auto_paste: bool = True
     paste_delay: float = 0.2
     shake_trigger: bool = True
-    shake_sensitivity: int = 4
+    shake_sensitivity: int = 3
     wheel_slots: int = 8
     wheel_theme: str = "aurora"
     hotkey_wheel: str = "<ctrl>+<alt>+<space>"

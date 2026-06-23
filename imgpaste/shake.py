@@ -21,7 +21,7 @@ except Exception:
 # จิ๊กเล็ก ๆ ที่ถือว่าเป็น noise ไม่นับเป็นการเคลื่อน
 _MIN_STEP = 6
 # ระยะรวมขั้นต่ำ (กันสั่นนิดเดียวแล้วเด้ง)
-_MIN_TRAVEL = 240
+_MIN_TRAVEL = 180
 
 
 def available() -> bool:
@@ -46,15 +46,15 @@ class ShakeDetector:
     def __init__(
         self,
         on_shake: Callable[[], None],
-        sensitivity: int = 4,
-        window: float = 0.4,
+        sensitivity: int = 3,
+        window: float = 0.5,
         cooldown: float = 1.5,
     ):
         self._on_shake = on_shake
         self._sensitivity = sensitivity
         self._window = window
         self._cooldown = cooldown
-        self._samples: deque[tuple[float, float]] = deque()
+        self._samples: deque[tuple[float, float, float]] = deque()
         self._last_fire = 0.0
         self._listener = None
         self._lock = threading.Lock()
@@ -80,19 +80,24 @@ class ShakeDetector:
     def _on_move(self, x, y) -> None:
         now = time.monotonic()
         with self._lock:
-            self._samples.append((now, x))
+            self._samples.append((now, x, y))
             cutoff = now - self._window
             while self._samples and self._samples[0][0] < cutoff:
                 self._samples.popleft()
             if now - self._last_fire < self._cooldown:
                 return
-            xs = [px for _, px in self._samples]
-            if len(xs) < self._sensitivity + 1:
+            if len(self._samples) < self._sensitivity + 1:
                 return
-            travel = sum(abs(b - a) for a, b in zip(xs, xs[1:]))
+            xs = [px for _, px, _ in self._samples]
+            ys = [py for _, _, py in self._samples]
+            # ระยะจริง (euclidean path) — รองรับสะบัดแนวตั้ง/เฉียง ไม่ใช่แค่ X
+            travel = sum(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+                         for (ax, ay), (bx, by) in zip(zip(xs, ys), zip(xs[1:], ys[1:])))
             if travel < _MIN_TRAVEL:
                 return
-            if count_reversals(xs) >= self._sensitivity:
+            # นับ reversal ทั้งสองแกน เอาแกนที่สะบัดเด่นสุด
+            reversals = max(count_reversals(xs), count_reversals(ys))
+            if reversals >= self._sensitivity:
                 self._last_fire = now
                 self._samples.clear()
                 fire = True
