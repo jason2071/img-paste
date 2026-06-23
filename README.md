@@ -80,17 +80,30 @@ editor (**AppKit, พื้นโปร่งใส ลอยกลางจอ*
 
 ### macOS permissions
 
-paste / hotkey / สะบัดเมาส์ / capture ต้องได้ permission ก่อน ไม่งั้น **copy ติด
-clipboard แต่ภาพไม่วาง** (synthetic `Cmd+V` ถูก macOS drop เงียบ ๆ).
+ทุกอันอยู่ที่ **System Settings → Privacy & Security**. grant ให้:
+- **SnapPaste** (ถ้ารัน .app prebuilt)
+- **Terminal** / app ที่รัน python (ถ้ารันจาก source)
 
-**รันจาก source (dev):** grant ให้ **Terminal** (หรือ app ที่รัน python)
-**รัน SnapPaste.app (prebuilt):** grant ให้ **SnapPaste**
+| Feature | Permission ที่ต้อง allow |
+|---|---|
+| Hotkey (`Ctrl+Alt+Space` ฯลฯ) เปิด wheel | **Input Monitoring** |
+| สะบัดเมาส์เปิด wheel (shake) | **Input Monitoring** |
+| paste อัตโนมัติ (synthetic `Cmd+V`) | **Accessibility** |
+| Capture region (จับภาพหน้าจอ) | **Screen Recording** |
+| Copy เข้า clipboard / เมนู tray | — (ไม่ต้องขอ) |
 
-1. **System Settings → Privacy & Security → Accessibility** → เปิด toggle ให้
-   SnapPaste/Terminal (ถ้าไม่มีในลิสต์ กด **+** แล้วเลือก SnapPaste.app)
-2. **System Settings → Privacy & Security → Screen Recording** → เปิดให้ด้วย
-   (จำเป็นเฉพาะ Capture region)
-3. **Quit แล้วเปิด SnapPaste ใหม่** — permission เพิ่งให้มีผลตอน restart
+**ขั้นตอน:**
+1. **Input Monitoring** → กด **+** เลือก SnapPaste.app → เปิด toggle
+   (จำเป็นสำหรับ hotkey + shake — ไม่มีอันนี้ global listener ไม่ได้ event)
+2. **Accessibility** → เปิด toggle ให้ SnapPaste (จำเป็นสำหรับ auto-paste)
+3. **Screen Recording** → เปิดให้ (เฉพาะ Capture region)
+4. **Quit แล้วเปิด SnapPaste ใหม่** — permission เพิ่งให้มีผลตอน restart
+
+> **อัปเดตเวอร์ชันแล้ว hotkey/shake/paste หาย?** build ใหม่ (ad-hoc sign) ถูก
+> macOS มองเป็น app คนละตัว → permission หลุด. ต้อง **ลบ entry SnapPaste เดิม
+> (กด −) แล้ว + add ใหม่** ทั้ง Input Monitoring + Accessibility แล้ว restart.
+> (แก้ถาวร: sign ด้วย stable self-signed cert เดิมทุก build → DR นิ่ง → TCC จำ
+> ข้ามเวอร์ชัน grant ครั้งเดียวจบ)
 
 ### Troubleshoot — เลือกในวงล้อ/กด Send แล้ว "ภาพไม่วาง"
 
